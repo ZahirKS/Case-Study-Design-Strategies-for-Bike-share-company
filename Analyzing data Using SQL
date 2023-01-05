@@ -1,0 +1,213 @@
+## Data Aggregation & Analysis using SQL (BigQuery)
+ 
+### The dataset `bike-share.Cyclistic.dataset_final` is where I will perform the following queries:
+--These queries will display the occupancy rate between user types.
+SELECT
+  user_type,
+  COUNT(*) AS user_count,
+  ROUND((COUNT(*)/SUM(COUNT(*))OVER())*100,2) AS percentage
+FROM `bike-share.Cyclistic.dataset_final` 
+GROUP BY user_type
+
+ 
+--This query will display the occupancy rate between bike types.
+SELECT
+  bike_type,
+  COUNT(*) AS user_count,
+  ROUND((COUNT(*)/SUM(COUNT(*))OVER())*100,2) AS percentage
+FROM `bike-share.Cyclistic.dataset_final`   
+GROUP BY bike_type
+
+
+--This query will display the average ride length (h) between bike types PER user type.
+SELECT
+   user_type,
+   bike_type,
+   ROUND(AVG(trip_duration_h),3) AS avg_h
+FROM `bike-share.Cyclistic.dataset_final`
+GROUP BY
+  user_type,
+  bike_type
+ORDER BY user_type
+
+
+--This query will display the average ride length (h) between user types.
+SELECT
+   user_type,
+   ROUND(AVG(trip_duration_h),3) AS avg_h
+FROM `bike-share.Cyclistic.dataset_final`
+GROUP BY user_type
+
+
+
+--These queries will display the average distance traveled per user type.
+SELECT
+   user_type,
+   ROUND(AVG(distance_traveled_km),3) AS avg_d
+FROM `bike-share.Cyclistic.dataset_final`
+GROUP BY user_type
+
+
+--This query will display the occupancy of trips & average trip duration per user type & by which weektype the trip occurred (weekday or weekend).
+SELECT
+  user_type,
+  week_type,
+  COUNT(*) AS user_count,
+  ROUND((COUNT(*)/SUM(COUNT(*))OVER(PARTITION BY user_type))*100,2) AS percentage,
+  ROUND(AVG(trip_duration_h),3) AS avg_trip_duration
+FROM `bike-share.Cyclistic.dataset_final`   
+GROUP BY
+  user_type,
+  week_type
+ORDER BY user_type,week_type ASC
+
+
+--This query will display the average ride length of trips per user type & by which day of week the trip occurred.
+with a AS (
+SELECT
+  user_type,
+  name_of_day,
+  COUNT(*) AS user_count,
+  ROUND((COUNT(*)/SUM(COUNT(*))OVER(PARTITION BY user_type))*100,2) AS percentage,
+  ROUND(AVG(trip_duration_h),3) AS avg_trip_duration
+FROM `bike-share.Cyclistic.dataset_final`   
+GROUP BY
+  user_type,
+  name_of_day
+ORDER BY user_type ASC
+),
+b as (
+  SELECT 'Monday'    name_of_day, 1 day_number UNION ALL
+  SELECT 'Tuesday'   name_of_day, 2 day_number UNION ALL
+  SELECT 'Wednesday' name_of_day, 3 day_number UNION ALL
+  SELECT 'Thursday'  name_of_day, 4 day_number UNION ALL
+  SELECT 'Friday'    name_of_day, 5 day_number UNION ALL
+  SELECT 'Saturday'  name_of_day, 6 day_number UNION ALL
+  SELECT 'Sunday'    name_of_day, 7 day_number
+)
+SELECT
+  a.user_type,
+  a.name_of_day,
+  a.user_count,
+  a.percentage,
+  a.avg_trip_duration
+FROM a
+JOIN b
+  ON b.name_of_day = a.name_of_day
+ORDER BY user_type, day_number
+
+
+--This query will display the occupancy of trips & average duration trip per user type & by which season the trip occurred.
+SELECT
+  user_type,
+  season,
+  COUNT(*) AS user_count,
+  ROUND((COUNT(*)/SUM(COUNT(*))OVER(PARTITION BY user_type))*100,2) AS percentage,
+  ROUND(AVG(trip_duration_h),3) AS avg_trip_duration
+FROM `bike-share.Cyclistic.dataset_final`   
+GROUP BY
+  user_type,
+  season
+ORDER BY user_type,season ASC
+
+ 
+--This query will display the occupancy of trips & average duration trip per user type & by which month the trip occurred.
+with a AS (
+SELECT
+  user_type,
+  month,
+  season,
+  COUNT(*) AS user_count,
+  ROUND((COUNT(*)/SUM(COUNT(*))OVER(PARTITION BY user_type))*100,2) AS percentage,
+  ROUND(AVG(trip_duration_h),3) AS avg_trip_duration
+FROM `bike-share.Cyclistic.dataset_final`   
+GROUP BY
+  user_type,
+  month,
+  season
+ORDER BY user_type ASC
+),
+b AS(
+SELECT *,
+  EXTRACT(MONTH FROM PARSE_DATE('%B', month)) AS month_number
+FROM a
+)
+SELECT * except (month_number)
+FROM b
+ORDER BY user_type,month_number
+
+
+
+--This query will display top 10 / popular routes taken by both user type, count of trips per user type & average trip duration (h).
+SELECT
+   route,
+   COUNT(*) AS count_of_trips,
+   SUM(CASE WHEN user_type = 'casual' THEN 1 else 0 end) AS casual_trip_count,
+   ROUND(AVG(CASE WHEN user_type ='casual' THEN trip_duration_h END),3) AS trip_duration_c,
+   SUM(CASE WHEN user_type = 'member' THEN 1 else 0 end) AS member_trip_count,
+   ROUND(AVG(CASE WHEN user_type ='member' THEN trip_duration_h END),3) AS trip_duration_m
+FROM `bike-share.Cyclistic.dataset_final`
+GROUP BY 
+  route
+ORDER BY 
+  count_of_trips DESC
+LIMIT 10
+
+--This query will display top 10 / popular NON ROUND TRIP ROUTES taken by both user type, count of trips per user type & average trip duration (h).
+SELECT
+   route,
+   COUNT(*) AS count_of_trips,
+   SUM(CASE WHEN user_type = 'casual' then 1 else 0 end) AS casual_user_count,
+   ROUND(AVG(CASE WHEN user_type ='casual' THEN trip_duration_h END),3) AS trip_duration_c,
+   SUM(CASE WHEN user_type = 'member' then 1 else 0 end) AS member_user_count,
+   ROUND(AVG(CASE WHEN user_type ='member' THEN trip_duration_h END),3) AS trip_duration_m
+FROM `bike-share.Cyclistic.dataset_final`
+WHERE
+  start_station_name != end_station_name
+GROUP BY 
+  route
+ORDER BY 
+  count_of_trips DESC
+LIMIT 10
+
+
+--This query will display the top 10 / popular ROUND TRIP ROUTES taken by both user type & count of trips per user type.
+SELECT
+   route,
+   COUNT(*) AS count_of_trips,
+   SUM(CASE WHEN user_type = 'casual' then 1 else 0 end) AS casual_user_count,
+   ROUND(AVG(CASE WHEN user_type ='casual' THEN trip_duration_h END),3) AS trip_duration_c,
+   SUM(CASE WHEN user_type = 'member' then 1 else 0 end) AS member_user_count,
+   ROUND(AVG(CASE WHEN user_type ='member' THEN trip_duration_h END),3) AS trip_duration_m
+FROM `bike-share.Cyclistic.dataset_final`
+WHERE
+  start_station_name = end_station_name
+GROUP BY 
+  route
+ORDER BY 
+  count_of_trips DESC
+LIMIT 10
+
+
+--This query will display the count of trips per user type categorized by its route type (roundtrip or non-roundtrip).
+SELECT
+   user_type,
+   COUNT(*) AS count_of_trips,
+   SUM(CASE WHEN start_station_name = end_station_name THEN 1 ELSE 0 END) AS roundtrip_count,
+   SUM(CASE WHEN start_station_name != end_station_name THEN 1 ELSE 0 END) AS non_roundtrip_count
+FROM `bike-share.Cyclistic.dataset_final`
+GROUP BY
+  user_type
+
+
+--This query will display the user type distribution per route type
+SELECT
+   route_type,
+   COUNT(*) AS tripcount,
+   SUM(CASE WHEN user_type = 'casual' THEN 1 ELSE 0 END) as casual_count,
+   ROUND(SUM(CASE WHEN user_type = 'casual' THEN 1 ELSE 0 END)/COUNT(*)*100,2) as casual_pct,
+   SUM(CASE WHEN user_type = 'member' THEN 1 ELSE 0 END) as member_count,
+   ROUND(SUM(CASE WHEN user_type = 'member' THEN 1 ELSE 0 END)/COUNT(*)*100,2) as member_pct,
+FROM `bike-share.Cyclistic.dataset_final`
+GROUP BY route_type
+
