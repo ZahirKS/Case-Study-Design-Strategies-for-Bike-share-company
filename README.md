@@ -3,7 +3,7 @@
 
 
 ## Introduction
-In which I analyze and design marketing strategies aimed at converting casual riders into annual members using real-world data provided by a bike-sharing company in Chicago.
+In this project I analyze and design marketing strategies aimed at converting casual riders into annual members using real-world data provided by a bike-sharing company in Chicago.
 
 * The final Cyclistic data analysis presentation is available at Google Slides.
 * Documentation of Data Cleaning & Manipulation Using SQL.
