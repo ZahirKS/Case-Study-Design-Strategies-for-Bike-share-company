@@ -10,12 +10,12 @@ In which I analyze and design marketing strategies aimed at converting casual ri
 * Documentation of Data Cleaning & Manipulation Using SQL.
 * Documentation of Analyzing Data to Answer Questions Using SQL.
 * Processing, cleaning, validation, and analysis were done in SQL.
-* Further analysis was done in Tableau Public and can be viewed at ![Cyclistic Data Analysis Tableau project](https://public.tableau.com/views/Bike-ShareProject_16728532092260/BikeDashboard?:language=en-US&:display_count=n&:origin=viz_share_link).
+* Further analysis was done in Tableau Public and can be viewed at [Cyclistic Data Analysis Tableau project](https://public.tableau.com/views/Bike-ShareProject_16728532092260/BikeDashboard?:language=en-US&:display_count=n&:origin=viz_share_link).
 
 
 ## Documentation
 
-* [Power-Point Presentation ](https://docs.google.com/presentation/d/1dYt_KVUVtCjCiNlbWLgBnUJ3gDTDkS22/edit?usp=sharing&ouid=106872198835370026623&rtpof=true&sd=true)
+* [Power-Point Presentation](https://docs.google.com/presentation/d/1dYt_KVUVtCjCiNlbWLgBnUJ3gDTDkS22/edit?usp=sharing&ouid=106872198835370026623&rtpof=true&sd=true)
 
 * [Case Study: Design Strategies for Bike-share company to navigate speedy success](https://docs.google.com/document/d/1caLhCQWDYnmgA2AWatJqC0bTUtLYuVWzjDSYG1b4Q-A/edit?usp=sharing)
 
