@@ -1,0 +1,218 @@
+### Data Cleaning & Manipulation Documentation
+
+Phase 3: Process
+This phase is where I:
+multiple files were merged using python and analyzed.
+used SQL (BigQuery) as an analysis tool, since it processes data faster compared to spreadsheets for big datasets.
+checked for data integrity by running different queries across field names that would help me in data cleaning.
+transformed data by adding and updating columns to add other categories to group user types even more to uncover patterns or give more context.
+verified and documented data cleaning results.
+ 
+DATA VALIDATION
+--Checking for NULL values for each column.
+SELECT COUNT(*)
+FROM `bike-share.Cyclistic.dataset`
+WHERE ride_length IS NULL
+
+--Checking COUNT for duplicate entries from ‘ride_id’ column; duplicate entries should be removed
+SELECT
+  ride_id,
+  COUNT(*) AS ride_id_count
+FROM `bike-share.Cyclistic.dataset`
+GROUP BY ride_id
+HAVING ride_id_count > 1
+ORDER BY ride_id_count DESC
+ 
+--Checking for misspelled words from the ‘rideable_type’ & ‘member_casual’ columns.
+SELECT
+  rideable_type,
+  member_casual
+FROM `bike-share.Cyclistic.dataset`
+GROUP BY rideable_type,member_casual
+ 
+--Checking COUNT for strange timestamps where end time (ended_at) is earlier & equal to compared to start time (started_at).
+SELECT
+   COUNT(*)
+FROM `bike-share.Cyclistic.dataset`
+WHERE started_at >= ended_at
+--Checking for trailing & leading spaces present on string values.
+SELECT 
+  rideable_type,
+  start_station_name,
+  end_station_name,
+  member_casual
+FROM `bike-share.Cyclistic.dataset`
+WHERE
+   rideable_type LIKE ' %' OR rideable_type LIKE '% '
+   OR start_station_name LIKE ' %' OR start_station_name LIKE '% '
+   OR end_station_name LIKE ' %' OR end_station_name LIKE '% '
+   OR member_casual LIKE ' %' OR member_casual LIKE '% '
+ 
+--Checking for start & end station names with Test on it.
+SELECT 
+  start_station_name,
+  end_station_name,
+  COUNT(*)
+FROM `bike-share.Cyclistic.dataset`
+WHERE start_station_name LIKE ('%Test%') OR end_station_name LIKE ('%Test%')
+GROUP BY start_station_name, end_station_name
+
+Findings:
+There were rows that have:
+end time is earlier or equal to start time (started_at >= ended_at)
+    that is why some rows have NULL ride_length as well
+unregistered start & end station name (start_station_name IS NULL OR end_station_name IS NULL)
+ that is why some rows have NULL end_lat & end_lng as well
+same ride_id (duplicates)
+ only unique ride IDs should be considered for analysis
+trailing or leading spaces on a string value on a certain field name
+the word ‘test’ on its start_station_name - test ride
+ 
+DATA CLEANING
+The table ‘Cyclistic_clean’ will be used for querying to apply data cleaning changes.
+ 
+--Delete rows that have earlier ‘ended_at’ compared to ‘started_at’
+DELETE FROM `bike-share.Cyclistic.dataset`
+WHERE started_at >= ended_at
+ 
+--Delete rows that have NULL ‘start_station_name’ OR ‘end_station_name’
+DELETE FROM `bike-share.Cyclistic.dataset`
+WHERE start_station_name IS NULL OR end_station_name IS NULL
+ 
+--Delete rows that have duplicate ride_id
+DELETE FROM `bike-share.Cyclistic.dataset`
+WHERE ride_id IN 
+    (SELECT ride_id
+     FROM `bike-share.Cyclistic.dataset`
+     GROUP BY ride_id HAVING COUNT(ride_id) > 1
+    )
+--CLEAN rows by removing trailing or leading spaces on a string value. In this case, ‘start_station_name’ & ‘end_station_name’ have spaces before or after the string value.
+UPDATE `bike-share.Cyclistic.dataset`
+SET
+   start_station_name = TRIM(start_station_name),
+   end_station_name = TRIM(end_station_name)
+WHERE
+   start_station_name LIKE ' %' OR start_station_name LIKE '% ' OR
+   end_station_name LIKE ' %' OR end_station_name LIKE '% '
+ 
+--Delete rows that have ‘Test’ on its start_station_name
+DELETE FROM `bike-share.Cyclistic.dataset`
+WHERE start_station_name LIKE ('%Test%') OR end_station_name LIKE ('%Test%')
+
+--Adding a column for duration in seconds as FLOAT64 & date as STRING for data parsing purposes later on
+ALTER TABLE`bike-share.Cyclistic.dataset`
+ADD COLUMN duration_s FLOAT64
+ADD COLUMN date_string STRING
+--Updating the column ‘duration_s’ for us to use as a condition in a WHERE CLAUSE for data cleaning.
+UPDATE `bike-share.Cyclistic.dataset` 
+SET duration_s = (EXTRACT(HOUR FROM ride_length)*3600)+(EXTRACT(MINUTE FROM ride_length)*60)+EXTRACT(SECOND FROM ride_length)
+WHERE TRUE
+--Updating the column ‘date’ in the ‘yyyy-mm-dd’ form
+UPDATE `bike-share.Cyclistic.dataset` 
+SET date_string = FORMAT_DATE('%Y-%m-%d',start_trip_time)
+WHERE TRUE
+ 
+Additional DATA CLEANING
+--Delete rows that have ride_length less than a minute
+DELETE FROM `bike-share.Cyclistic.dataset`
+WHERE duration_s < 60 
+Result: 1,388,304 rows have been deleted & 83 values have been updated.
+Total Row Count before data cleaning: 5,883,043
+Total Row Count before data cleaning: 4,494,739 (where 83 values were updated)
+ 
+DATA MANIPULATION
+ALTER TABLE`bike-share.Cyclistic.dataset`
+ADD COLUMN duration_min FLOAT64,
+ADD COLUMN duration_h FLOAT64,
+ADD COLUMN velocity_kph FLOAT64,
+ADD COLUMN week_type STRING,
+ADD COLUMN season STRING,
+ADD COLUMN month STRING,
+ADD COLUMN name_of_day STRING,
+ADD COLUMN route STRING
+ADD COLUMN route_type STRING
+ 
+Updating values into the columns added:
+--This query updates the ‘month’ column using the FORMAT_DATETIME function.
+UPDATE `bike-share.Cyclistic.dataset` 
+SET month = FORMAT_DATETIME("%B",started_at)
+WHERE TRUE
+--This query updates the ‘season’ column using the CASE function.
+UPDATE `bike-share.Cyclistic.dataset` 
+SET season =
+  (CASE month
+    WHEN 'January' THEN 'Winter'
+    WHEN 'February' THEN 'Winter'
+    WHEN 'March' THEN 'Spring'
+    WHEN 'April' THEN 'Spring'
+    WHEN 'May' THEN 'Spring'
+    WHEN 'June' THEN 'Summer'
+    WHEN 'July' THEN 'Summer'
+    WHEN 'August' THEN 'Summer'
+    WHEN 'September' THEN 'Fall'
+    WHEN 'October' THEN 'Fall'
+    WHEN 'November' THEN 'Fall'
+    WHEN 'December' THEN 'Winter'
+    ELSE ' '
+    END)
+WHERE TRUE
+--This query updates the ‘name_of_day’ column using the FORMAT_DATETIME function.
+UPDATE `bike-share.Cyclistic.dataset` 
+SET name_of_day = FORMAT_DATETIME("%A",started_at)
+WHERE TRUE
+--This query updates the ‘week_type’ column using the CASE function.
+UPDATE `bike-share.Cyclistic.dataset`
+SET week_type =
+  (CASE name_of_day
+    WHEN 'Sunday' THEN 'Weekend'
+    WHEN 'Saturday' THEN 'Weekend'
+    ELSE 'Weekday'
+    END) WHERE TRUE
+--This query updates the ‘route’ column by using the CONCAT function.
+UPDATE `bike-share.Cyclistic.dataset`
+SET route = CONCAT(start_station_name, ' to ', end_station_name)
+WHERE TRUE
+--This query updates the ‘route’ column by using the CASE function.
+UPDATE `bike-share.Cyclistic.dataset`
+SET route_type =
+  CASE WHEN start_station_name = end_station_name THEN 'roundtrip' ELSE 'non-round trip' END
+WHERE TRUE
+--This query updates the ‘duration_min’ column by dividing duration_s by 60.
+UPDATE `bike-share.Cyclistic.dataset` 
+SET duration_min = duration_s/60
+WHERE TRUE
+--This query updates the ‘duration_h’ column by dividing duration_min by 60.
+UPDATE `bike-share.Cyclistic.dataset` 
+SET duration_h = duration_min/60
+WHERE TRUE
+--This query updates the ‘velocity_kph’ column by dividing duration_min by 60.
+UPDATE `bike-share.Cyclistic.dataset` 
+SET velocity_kph = CAST(distance_traveled_km/duration_h AS INT64)
+WHERE TRUE	
+--Rearranging & renaming some columns from the table to make it organized:
+SELECT
+  ride_id,
+  rideable_type AS bike_type,
+  member_casual AS user_type,
+  date_string AS yyyymmdd,
+  started_at AS start_trip_time,
+  ended_at AS end_trip_time,
+  duration_s AS trip_duration_s,
+  ROUND(duration_min,3) AS trip_duration_min,
+  ROUND(duration_h,3) AS trip_duration_h,
+  season,
+  month,
+  week_type,
+  name_of_day,
+  route,
+  route_type,        
+  start_station_name,
+  end_station_name,
+  start_lat,
+  start_lng,
+  end_lat,
+  end_lng,
+  ROUND(distance_traveled_km,3)
+FROM `bike-share.Cyclistic.dataset
+ 
+Saved the query as a BigQuery table and named it as dataset_final
